@@ -1,7 +1,7 @@
 {
 	"name": "n8n-nodes-promptstudio",
 	"version": "0.1.0",
-	"description": "n8n node to run Prompts",
+	"description": "n8n node to run Prompt Studio Recipes",
 	"keywords": [
 		"n8n-community-node-package"
 	],
