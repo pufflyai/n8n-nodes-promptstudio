@@ -3,10 +3,12 @@
 	"version": "0.1.0",
 	"description": "n8n node to run Prompt Studio Recipes",
 	"keywords": [
-		"n8n-community-node-package"
+		"n8n-community-node-package",
+		"n8n",
+		"prompt-studio"
 	],
 	"license": "MIT",
-	"homepage": "https://n8n.io",
+	"homepage": "https://prompt.studio",
 	"author": {
 		"name": "Auré Franky",
 		"email": "a.franky@prompt.studio"
