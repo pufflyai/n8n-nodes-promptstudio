@@ -1,12 +1,134 @@
 // All the node functionality is in this file
 // When building more complex nodes, you should consider splitting out your functionality into modules
-import { IExecuteFunctions } from 'n8n-core';
+import moment from 'moment';
+import { IExecuteFunctions, ILoadOptionsFunctions } from 'n8n-core';
+import {
+	IDataObject,
+	INodeExecutionData,
+	INodeListSearchResult,
+	INodePropertyOptions,
+	INodeType,
+	INodeTypeDescription,
+	NodeOperationError,
+} from 'n8n-workflow';
 
-import { IDataObject, INodeExecutionData, INodeType, INodeTypeDescription } from 'n8n-workflow';
+interface Deployment {
+	deployment_id: string;
+	created_at: string;
+	recipe_id: string;
+	recipe_name: string;
+	schemas: { request_schema: {}; response_schema: {} };
+}
 
-import { OptionsWithUri } from 'request';
+interface DeploymentResponse {
+	deployments: Deployment[];
+}
+
+const API_BASE_URL = 'https://api.prompt.studio/api/v1';
 
 export class PromptStudio implements INodeType {
+	methods = {
+		listSearch: {
+			async searchMethod(
+				this: ILoadOptionsFunctions,
+				query?: string,
+			): Promise<INodeListSearchResult> {
+				const res: DeploymentResponse = await this.helpers.requestWithAuthentication.call(
+					this,
+					'promptStudioApi',
+					{
+						method: 'GET',
+						uri: `${API_BASE_URL}/deployments`,
+						json: true,
+					},
+				);
+
+				const results: { [key: string]: INodePropertyOptions } = res.deployments
+					// index by recipe for readability
+					.reduce((acc, deployment) => {
+						if (!acc[deployment.recipe_id]) {
+							acc[deployment.recipe_id] = {
+								value: JSON.stringify({
+									deployments: [deployment.deployment_id],
+									schemas: [deployment.schemas],
+									created_at: [deployment.created_at],
+								}),
+								name: deployment.recipe_name,
+							};
+						} else {
+							acc[deployment.recipe_id].value = JSON.stringify({
+								deployments: [
+									...JSON.parse(acc[deployment.recipe_id].value as string).deployments,
+									deployment.deployment_id,
+								],
+								schemas: [
+									...JSON.parse(acc[deployment.recipe_id].value as string).schemas,
+									deployment.schemas,
+								],
+								created_at: [
+									...JSON.parse(acc[deployment.recipe_id].value as string).created_at,
+									deployment.created_at,
+								],
+							});
+						}
+						return acc;
+					}, {} as { [key: string]: INodePropertyOptions });
+
+				return { results: Object.values(results) };
+			},
+		},
+		loadOptions: {
+			async loadDeployments(this: ILoadOptionsFunctions): Promise<any> {
+				const param = this.getCurrentNodeParameter('recipeId');
+				const recipe = JSON.parse((param as any)?.value || '{}');
+				const deployments = (recipe.deployments as string[]) || [];
+				const created_at = (recipe.created_at as string[]) || [];
+				const options = deployments
+					.map((deployment, index) => {
+						return {
+							name: `${moment(created_at[index]).format('YYYY-MM-DD, hh:mm:ss')} - ${deployment}`,
+							value: deployment,
+						};
+					})
+					.sort((a, b) => {
+						return b.name.localeCompare(a.name);
+					});
+
+				return options;
+			},
+		},
+		resourceMapping: {
+			async getMappingColumns(this: ILoadOptionsFunctions): Promise<{ fields: any[] }> {
+				const param = this.getCurrentNodeParameter('recipeId');
+				const recipe = JSON.parse((param as any)?.value || '{}');
+				const deployments = (recipe.deployments as string[]) || [];
+				const schemas = (recipe.schemas as any[]) || [];
+				const deploymentId = this.getCurrentNodeParameter('deploymentId') as string;
+				const deploymentIndex = deployments.findIndex((dep) => dep === deploymentId);
+				const schema = schemas[deploymentIndex];
+
+				if (!schema?.request_schema) {
+					throw new NodeOperationError(
+						this.getNode(),
+						'No schema found for the selected deployment',
+					);
+				}
+
+				const fields = Object.keys(schema?.request_schema || {}).map((key) => ({
+					id: key,
+					displayName: key,
+					required: true,
+					defaultMatch: true,
+					display: true,
+					type: 'string',
+					canBeUsedToMatch: true,
+					readOnly: false,
+					removed: false,
+				}));
+				return { fields };
+			},
+		},
+	} as any; // :(
 	description: INodeTypeDescription = {
 		// Basic node details will go here
 		displayName: 'Prompt Studio',
@@ -27,131 +149,99 @@ export class PromptStudio implements INodeType {
 			},
 		],
 		properties: [
-			// Resources and operations will go here
 			{
-				displayName: 'Resource',
-				name: 'resource',
-				type: 'options',
-				options: [
+				displayName: 'Recipe',
+				name: 'recipeId',
+				type: 'resourceLocator',
+				description: 'Select a recipe',
+				required: true,
+				default: { mode: 'list', value: '' },
+				modes: [
 					{
-						name: 'Contact',
-						value: 'contact',
+						displayName: 'List',
+						name: 'list',
+						type: 'list',
+						typeOptions: {
+							searchListMethod: 'searchMethod',
+							searchable: true,
+							searchFilterRequired: false,
+						},
 					},
 				],
-				default: 'contact',
-				noDataExpression: true,
-				required: true,
-				description: 'Create a new contact',
 			},
 			{
-				displayName: 'Operation',
-				name: 'operation',
+				displayName: 'Deployment Name or ID',
+				name: 'deploymentId',
 				type: 'options',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a contact',
-						action: 'Create a contact',
-					},
-				],
-				default: 'create',
-				noDataExpression: true,
-			},
-			{
-				displayName: 'Email',
-				name: 'email',
-				type: 'string',
+				description:
+					'Select a deployment. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code-examples/expressions/">expression</a>.',
 				required: true,
-				displayOptions: {
-					show: {
-						operation: ['create'],
-						resource: ['contact'],
-					},
-				},
 				default: '',
-				placeholder: 'name@email.com',
-				description: 'Primary email for the contact',
-			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
+				typeOptions: {
+					loadOptionsMethod: 'loadDeployments',
+					loadOptionsDependsOn: ['recipeId.value'],
+				},
 				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['create'],
+					hide: {
+						recipeId: [''],
 					},
 				},
-				options: [
-					{
-						displayName: 'First Name',
-						name: 'firstName',
-						type: 'string',
-						default: '',
-					},
-					{
-						displayName: 'Last Name',
-						name: 'lastName',
-						type: 'string',
-						default: '',
-					},
-				],
 			},
+			{
+				displayName: 'Inputs',
+				name: 'inputs',
+				type: 'resourceMapper',
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
+				description: 'Select inputs',
+				typeOptions: {
+					loadOptionsDependsOn: ['deploymentId', 'recipeId.value'],
+					resourceMapper: {
+						resourceMapperMethod: 'getMappingColumns',
+						mode: 'add',
+						fieldWords: {
+							singular: 'input',
+							plural: 'inputs',
+						},
+						addAllFields: true,
+						multiKeyMatch: true,
+						supportAutoMap: false,
+					},
+				},
+				displayOptions: {
+					hide: {
+						recipeId: [''],
+						deploymentId: [''],
+					},
+				},
+			} as any,
 		],
 	};
-	// The execute method will go here
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-		// Handle data coming from previous nodes
 		const items = this.getInputData();
-		let responseData;
-		const returnData = [];
-		const resource = this.getNodeParameter('resource', 0) as string;
-		const operation = this.getNodeParameter('operation', 0) as string;
+		let responseData: any;
+		const returnData: IDataObject[] = [];
 
-		// For each item, make an API call to create a contact
 		for (let i = 0; i < items.length; i++) {
-			if (resource === 'contact') {
-				if (operation === 'create') {
-					// Get email input
-					const email = this.getNodeParameter('email', i) as string;
-					// Get additional fields input
-					const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
-					const data: IDataObject = {
-						email,
-					};
+			const deploymentId = this.getNodeParameter('deploymentId', 0) as string;
+			const inputs = this.getNodeParameter('inputs', 0) as IDataObject;
 
-					Object.assign(data, additionalFields);
+			responseData = await this.helpers.requestWithAuthentication.call(this, 'promptStudioApi', {
+				method: 'POST',
+				uri: `${API_BASE_URL}/instructions/${deploymentId}/run`,
+				json: true,
+				body: {
+					input: inputs.value,
+				},
+			});
 
-					// Make HTTP request according to https://sendgrid.com/docs/api-reference/
-					const options: OptionsWithUri = {
-						headers: {
-							Accept: 'application/json',
-						},
-						method: 'PUT',
-						body: {
-							contacts: [data],
-						},
-						uri: `https://api.sendgrid.com/v3/marketing/contacts`,
-						json: true,
-					};
-					responseData = await this.helpers.requestWithAuthentication.call(
-						this,
-						'promptStudioApi',
-						options,
-					);
-					returnData.push(responseData);
-				}
-			}
+			returnData.push({
+				...responseData,
+			});
 		}
-		// Map data to n8n data structure
 		return [this.helpers.returnJsonArray(returnData)];
 	}
 }

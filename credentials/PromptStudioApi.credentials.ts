@@ -13,6 +13,7 @@ export class PromptStudioApi implements ICredentialType {
 			displayName: 'API Key',
 			name: 'apiKey',
 			type: 'string',
+			typeOptions: { password: true },
 			default: '',
 		},
 	];
@@ -28,8 +29,8 @@ export class PromptStudioApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: 'https://api.sendgrid.com/v3',
-			url: '/marketing/contacts',
+			baseURL: 'https://api.prompt.studio/api/v1',
+			url: '/deployments',
 		},
 	};
 }

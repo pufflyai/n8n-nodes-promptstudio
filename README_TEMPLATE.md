@@ -1,18 +1,18 @@
-# n8n-nodes-_node-name_
+# n8n-nodes-prompt-studio
 
-This is an n8n community node. It lets you use _app/service name_ in your n8n workflows.
+This is an n8n community node. It lets you use prompt_studio/run_recipe in your n8n workflows.
 
-_App/service name_ is _one or two sentences describing the service this node integrates with_.
+prompt-studio/run_recipe allows you to run custom prompt chains (recipes) that you created in [Prompt Studio](https://prompt.studio) .
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 [Installation](#installation)  
 [Operations](#operations)  
-[Credentials](#credentials)  <!-- delete if no auth needed -->  
+[Credentials](#credentials) <!-- delete if no auth needed -->  
 [Compatibility](#compatibility)  
-[Usage](#usage)  <!-- delete if not using this section -->  
+[Usage](#usage) <!-- delete if not using this section -->  
 [Resources](#resources)  
-[Version history](#version-history)  <!-- delete if not using this section -->  
+[Version history](#version-history) <!-- delete if not using this section -->
 
 ## Installation
 
@@ -38,11 +38,9 @@ _By the time users are looking for community nodes, they probably already know n
 
 ## Resources
 
-* [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
-* _Link to app/service documentation._
+- [n8n community nodes documentation](https://docs.n8n.io/integrations/community-nodes/)
+- _Link to app/service documentation._
 
 ## Version history
 
 _This is another optional section. If your node has multiple versions, include a short description of available versions and what changed, as well as any compatibility impact._
-
-
