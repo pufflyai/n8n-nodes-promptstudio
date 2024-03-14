@@ -7,12 +7,10 @@
 	],
 	"license": "MIT",
 	"homepage": "https://n8n.io",
-	"authors": [
-		{
-			"name": "Auré Franky",
-			"email": "a.franky@prompt.studio"
-		}
-	],
+	"author": {
+		"name": "Auré Franky",
+		"email": "a.franky@prompt.studio"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/pufflyai/n8n-node.git"
