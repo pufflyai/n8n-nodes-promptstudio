@@ -226,8 +226,8 @@ export class PromptStudio implements INodeType {
 		const returnData: IDataObject[] = [];
 
 		for (let i = 0; i < items.length; i++) {
-			const deploymentId = this.getNodeParameter('deploymentId', 0) as string;
-			const inputs = this.getNodeParameter('inputs', 0) as IDataObject;
+			const deploymentId = this.getNodeParameter('deploymentId', i) as string;
+			const inputs = this.getNodeParameter('inputs', i) as IDataObject;
 
 			responseData = await this.helpers.requestWithAuthentication.call(this, 'promptStudioApi', {
 				method: 'POST',
